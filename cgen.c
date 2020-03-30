@@ -58,10 +58,7 @@ void yield(unsigned long value) {
 }
 
 bool next(struct gen *g, unsigned long *value) {
-    if (g->exhausted) {
-        // user called next() again after exhaustion
-        return false;
-    }
+    assert(!g->exhausted); // otherwise, we're operating on dangling memory
 
     if (!setjmp(g->next)) {
         if (!g->started) {
@@ -78,6 +75,7 @@ bool next(struct gen *g, unsigned long *value) {
 
     if (g->exhausted) {
         // was marked by gen_done() because the generator returned.
+        free(g);
         return false;
     }
 
