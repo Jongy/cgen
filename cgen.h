@@ -1,6 +1,9 @@
 #ifndef CGEN_H
 #define CGEN_H
 
+
+#include <stdbool.h>
+
 // clever macros taken from https://stackoverflow.com/a/2124385/797390
 #define PP_NARG(...)  PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
 #define PP_NARG_(...) PP_ARG_N(__VA_ARGS__)
@@ -23,5 +26,14 @@
 
 
 #define CGEN_MAX_ARGS (10)
+
+struct gen;
+
+struct gen *gen_build(void *func, size_t nargs, ...);
+bool next(struct gen *g, unsigned long *value);
+void yield(unsigned long value);
+
+#define generator(func, ...) \
+    gen_build(func, PP_NARG(__VA_ARGS__), ## __VA_ARGS__)
 
 #endif // CGEN_H

@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdbool.h>
 #include <setjmp.h>
 #include <malloc.h>
 #include <stdarg.h>
@@ -50,7 +48,7 @@ static struct gen *current_gen(void) {
     return (struct gen*)(sp & ~(STACK_SIZE - 1));
 }
 
-static void yield(unsigned long value) {
+void yield(unsigned long value) {
     struct gen *g = current_gen();
 
     g->yield_value = value;
@@ -59,7 +57,7 @@ static void yield(unsigned long value) {
     }
 }
 
-static bool next(struct gen *g, unsigned long *value) {
+bool next(struct gen *g, unsigned long *value) {
     if (g->exhausted) {
         // user called next() again after exhaustion
         return false;
@@ -141,7 +139,7 @@ static bool setup_args_and_stack(struct gen *g, size_t nargs, va_list ap) {
     gen_stack_top(g)[-1 - g->setup.stack_args] = (unsigned long)gen_done;
 }
 
-static struct gen *gen_build(void *func, size_t nargs, ...) {
+struct gen *gen_build(void *func, size_t nargs, ...) {
     if (nargs > CGEN_MAX_ARGS) {
         return NULL;
     }
@@ -157,26 +155,4 @@ static struct gen *gen_build(void *func, size_t nargs, ...) {
     va_end(ap);
 
     return g;
-}
-
-#define generator(func, ...) \
-    gen_build(func, PP_NARG(__VA_ARGS__), ## __VA_ARGS__)
-
-
-static void mygen2(int n, int c, int d, int e, int f, int z, int ff) {
-    printf("%d %d %d %d %d %d\n", n, c, d, e, f, z);
-    for (int i = 0; i < ff; i++) {
-        yield(i * 2);
-    }
-}
-
-int main(void) {
-    struct gen *g = generator(mygen2, 1, 2, 3, 4, 5, 6, 9);
-
-    unsigned long val;
-    while (next(g, &val)) {
-        printf("%s: returned %ld\n", __func__, val);
-    }
-
-    assert(g->exhausted);
 }
