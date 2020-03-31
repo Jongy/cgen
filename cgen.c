@@ -26,6 +26,9 @@ struct gen {
         } setup;
     };
 
+#define MAGIC 0xdeadbeaf
+    unsigned int magic;
+
     bool started;
     bool exhausted;
 
@@ -45,7 +48,9 @@ static struct gen *current_gen(void) {
     register unsigned long sp asm("rsp");
 
     // stack is the first elemnt of the gen struct.
-    return (struct gen*)(sp & ~(STACK_SIZE - 1));
+    struct gen *g = (struct gen*)(sp & ~(STACK_SIZE - 1));
+    assert(g->magic == MAGIC);
+    return g;
 }
 
 unsigned long yield(unsigned long value) {
@@ -105,6 +110,7 @@ static void gen_done(void) {
 static struct gen *make_gen(void (*f)(void)) {
     struct gen *g = memalign(STACK_SIZE, sizeof(*g));
 
+    g->magic = MAGIC;
     g->started = false;
     g->exhausted = false;
 
