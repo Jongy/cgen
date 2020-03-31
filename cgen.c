@@ -31,7 +31,7 @@ struct gen {
 
     jmp_buf next;
     jmp_buf yield;
-    unsigned long yield_value;
+    unsigned long yield_value; // used as yield / send value.
 };
 
 // see gencall.S
@@ -48,20 +48,27 @@ static struct gen *current_gen(void) {
     return (struct gen*)(sp & ~(STACK_SIZE - 1));
 }
 
-void yield(unsigned long value) {
+unsigned long yield(unsigned long value) {
     struct gen *g = current_gen();
 
     g->yield_value = value;
     if (!setjmp(g->yield)) {
         longjmp(g->next, 1);
     }
+
+    return g->yield_value;
 }
 
 bool next(struct gen *g, unsigned long *value) {
+    return send(g, value, 0);
+}
+
+bool send(struct gen *g, unsigned long *value, unsigned long send) {
     assert(!g->exhausted); // otherwise, we're operating on dangling memory
 
     if (!setjmp(g->next)) {
         if (!g->started) {
+            assert(!send);
             g->started = true;
 
             // first jump is implemented differently, since we want to pass arguments
@@ -69,6 +76,7 @@ bool next(struct gen *g, unsigned long *value) {
             // stack top: remove (1 + number of stack args) words. (1 for the return address)
             gencall(g, gen_stack_top(g) - 1 - g->setup.stack_args);
         } else {
+            g->yield_value = send;
             longjmp(g->yield, 1);
         }
     }
@@ -79,7 +87,9 @@ bool next(struct gen *g, unsigned long *value) {
         return false;
     }
 
-    *value = g->yield_value;
+    if (value) {
+        *value = g->yield_value;
+    }
     return true;
 }
 

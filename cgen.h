@@ -30,8 +30,16 @@
 struct gen;
 
 struct gen *gen_build(void *func, size_t nargs, ...);
+
+// next & send both return true if the generator was exhausted, false otherwise.
+// both store the yielded value in '*value'.
+// send accepts 'send' and communicates it to the generator.
+// next is equivalent to send with 0.
 bool next(struct gen *g, unsigned long *value);
-void yield(unsigned long value);
+bool send(struct gen *g, unsigned long *value, unsigned long send);
+// call with 'value' to yield it.
+// returns the value communicated back, 0 if no value was communicated.
+unsigned long yield(unsigned long value);
 
 #define generator(func, ...) \
     gen_build(func, PP_NARG(__VA_ARGS__), ## __VA_ARGS__)
