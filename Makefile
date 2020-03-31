@@ -11,4 +11,10 @@ run: main
 	./main
 
 clean:
-	rm -f *.o libcgen.a main
+	rm -f *.o libcgen.a main test
+
+build_test: test.c libcgen.a
+	gcc -o test test.c libcgen.a
+
+test: build_test
+	./test
