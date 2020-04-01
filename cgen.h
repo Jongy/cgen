@@ -40,6 +40,8 @@ bool send(struct gen *g, unsigned long *value, unsigned long send);
 // call with 'value' to yield it.
 // returns the value communicated back, 0 if no value was communicated.
 unsigned long yield(unsigned long value);
+// yield from another generator, return when it's done.
+void yield_from(struct gen *other_g);
 
 #define generator(func, ...) \
     gen_build(func, PP_NARG(__VA_ARGS__), ## __VA_ARGS__)

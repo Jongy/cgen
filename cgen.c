@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <string.h>
 
 #include "cgen.h"
 
@@ -31,10 +32,13 @@ struct gen {
 
     bool started;
     bool exhausted;
+    bool in_yield_from;
 
     jmp_buf next;
     jmp_buf yield;
     unsigned long yield_value; // used as yield / send value.
+    struct gen *yield_from;
+    jmp_buf yield_from_buf;
 };
 
 // see gencall.S
@@ -64,14 +68,25 @@ unsigned long yield(unsigned long value) {
     return g->yield_value;
 }
 
+static bool __send(struct gen *g, unsigned long *value, unsigned long send, bool do_setjmp);
+
 bool next(struct gen *g, unsigned long *value) {
     return send(g, value, 0);
 }
 
 bool send(struct gen *g, unsigned long *value, unsigned long send) {
+    __send(g, value, send, false);
+}
+
+static bool __send(struct gen *g, unsigned long *value, unsigned long send, bool skip_setjmp) {
     assert(!g->exhausted); // otherwise, we're operating on dangling memory
 
-    if (!setjmp(g->next)) {
+    // forward call if we're in yield_from.
+    if (g->yield_from) {
+        return __send(g->yield_from, value, send, skip_setjmp);
+    }
+
+    if (skip_setjmp || !setjmp(g->next)) {
         if (!g->started) {
             assert(!send);
             g->started = true;
@@ -98,13 +113,44 @@ bool send(struct gen *g, unsigned long *value, unsigned long send) {
     return true;
 }
 
+static inline void copy_jmp_buf(jmp_buf dst, jmp_buf src) {
+    memcpy(dst, src, sizeof(jmp_buf));
+}
+
+void yield_from(struct gen *other_g) {
+    struct gen *g = current_gen();
+
+    g->yield_from = other_g;
+    // we can be sure our g->next is initialized, since this generator
+    // was already called.
+    copy_jmp_buf(other_g->next, g->next);
+
+    // gen_done of other_g will jump back here
+    if (!setjmp(other_g->yield_from_buf)) {
+        other_g->in_yield_from = true;
+        __send(other_g, NULL, 0, true);
+    }
+
+    // no need to copy other_g->next back here - remember that
+    // the code calling next() operates on g, not on other_g, so our
+    // next buf is up-to-date.
+
+    g->yield_from = NULL;
+    free(other_g);
+}
+
 // generator functions return here when they're done.
 // this jumps back to next() and notifies the generator is exhausted.
 static void gen_done(void) {
     struct gen *g = current_gen();
 
     g->exhausted = true;
-    longjmp(g->next, 1);
+
+    if (g->in_yield_from) {
+        longjmp(g->yield_from_buf, 1);
+    } else {
+        longjmp(g->next, 1);
+    }
 }
 
 static struct gen *make_gen(void (*f)(void)) {
@@ -113,6 +159,8 @@ static struct gen *make_gen(void (*f)(void)) {
     g->magic = MAGIC;
     g->started = false;
     g->exhausted = false;
+    g->in_yield_from = false;
+    g->yield_from = NULL;
 
     g->setup.func = f;
     g->setup.stack_args = 0;
