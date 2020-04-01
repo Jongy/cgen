@@ -14,11 +14,28 @@ static void simple(int n) {
     }
 }
 
+static void test_simple(void) {
+    struct gen *g = generator(simple, 10);
+    unsigned long val, i;
+    for (i = 0; next(g, &val); i++) {
+        assert(i == val);
+    }
+    assert(i == 10);
+}
+
 static void sender(int n, int k) {
     for (int i = 0; i < n; i++) {
         k += yield(0);
     }
     yield(k);
+}
+
+static void test_send(void) {
+    struct gen *g = generator(sender, 5, 10);
+    next(g, NULL); // prime
+    unsigned long val, i = 0;
+    while (send(g, &val, i++));
+    assert(val == 10 + 0 + 1 + 2 + 3 + 4);
 }
 
 static void many_args(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9) {
@@ -35,6 +52,15 @@ static void many_args(int a0, int a1, int a2, int a3, int a4, int a5, int a6, in
     yield(a9);
 }
 
+static void test_max_args(void) {
+    struct gen *g = generator(many_args, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    unsigned long sum = 0, val;
+    while (next(g, &val)) {
+        sum += val;
+    }
+    assert(sum == 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10);
+}
+
 static void yieldfrom(int n) {
     struct gen *g;
 
@@ -48,37 +74,10 @@ static void yieldfrom(int n) {
     yield(42);
 }
 
-int main(void) {
-    struct gen *g;
-    unsigned long val;
-    int i;
-
-    // simple test
-    g = generator(simple, 10);
-    for (i = 0; next(g, &val); i++) {
-        assert(i == val);
-    }
-    assert(i == 10);
-
-    // test with send
-    g = generator(sender, 5, 10);
-    next(g, NULL); // prime
-    i = 0;
-    while (send(g, &val, i++));
-    assert(val == 10 + 0 + 1 + 2 + 3 + 4);
-
-    // test with max args
-    g = generator(many_args, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-    unsigned long sum = 0;
-    while (next(g, &val)) {
-        sum += val;
-    }
-    assert(sum == 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10);
-
-    // test yield from
-    g = generator(yieldfrom, 5);
+static void test_yieldfrom(void) {
+    struct gen *g = generator(yieldfrom, 5);
+    unsigned long val, sum = 0;
     assert(next(g, &val) && val == 42);
-    sum = 0;
     while (next(g, &val)) {
         if (val == 42) {
             break;
@@ -88,4 +87,11 @@ int main(void) {
     }
     assert(val == 42);
     assert(sum == 0 + 1 + 2 + 3 + 4 + 0 + 1 + 2 + 3 + 4 + 5);
+}
+
+int main(void) {
+    test_simple();
+    test_send();
+    test_max_args();
+    test_yieldfrom();
 }
