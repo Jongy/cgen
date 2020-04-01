@@ -108,7 +108,17 @@ static bool __send(struct gen *g, unsigned long *value, unsigned long send, bool
     }
 
     if (value) {
-        *value = g->yield_value;
+        if (g->yield_from) {
+            // TODO this works but i don't like it. fix yield_from logic so it
+            // hides this
+            struct gen *gg = g->yield_from;
+            while (gg->yield_from) {
+                gg = gg->yield_from;
+            }
+            *value = gg->yield_value;
+        } else {
+            *value = g->yield_value;
+        }
     }
     return true;
 }

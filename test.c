@@ -74,19 +74,35 @@ static void yieldfrom(int n) {
     yield(42);
 }
 
-static void test_yieldfrom(void) {
-    struct gen *g = generator(yieldfrom, 5);
+static void _test_yieldfrom(struct gen *g, int add) {
     unsigned long val, sum = 0;
     assert(next(g, &val) && val == 42);
     while (next(g, &val)) {
-        if (val == 42) {
-            break;
-        }
-
         sum += val;
     }
-    assert(val == 42);
-    assert(sum == 0 + 1 + 2 + 3 + 4 + 0 + 1 + 2 + 3 + 4 + 5);
+    assert(sum == 0 + 1 + 2 + 3 + 4 + 0 + 1 + 2 + 3 + 4 + 5 + 42 + add);
+}
+
+static void test_yieldfrom(void) {
+    struct gen *g = generator(yieldfrom, 5);
+    _test_yieldfrom(g, 0);
+}
+
+static void yieldfrom2(int n) {
+    struct gen *g = generator(yieldfrom, n);
+    yield_from(g);
+    yield(17);
+}
+
+static void yieldfrom3(int n) {
+    struct gen *g = generator(yieldfrom2, n);
+    yield_from(g);
+    yield(12);
+}
+
+static void test_yieldfrom_chained(void) {
+    struct gen *g = generator(yieldfrom3, 5);
+    _test_yieldfrom(g, 17 + 12);
 }
 
 int main(void) {
@@ -94,4 +110,5 @@ int main(void) {
     test_send();
     test_max_args();
     test_yieldfrom();
+    test_yieldfrom_chained();
 }

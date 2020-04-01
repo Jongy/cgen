@@ -20,8 +20,28 @@ static void mygen2(int n, int c, int d, int e, int f, int z, int ff) {
     }
 }
 
+static void mygen5(void) {
+    yield(3);
+    yield(4);
+}
+
+static void mygen6(void) {
+    yield(2);
+    struct gen *g = generator(mygen5);
+    yield_from(g);
+    yield(5);
+}
+
+static void mygen7(void) {
+    yield(1);
+    struct gen *g = generator(mygen6);
+    yield_from(g);
+    yield(6);
+}
+
 int main(void) {
-    struct gen *g = generator(mygen2, 1, 2, 3, 4, 5, 6, 9);
+    // struct gen *g = generator(mygen2, 1, 2, 3, 4, 5, 6, 9);
+    struct gen *g = generator(mygen7);
 
     unsigned long val;
     while (next(g, &val)) {
