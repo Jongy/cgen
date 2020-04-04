@@ -32,7 +32,7 @@ struct gen;
 
 struct gen *gen_build(void *func, size_t nargs, ...);
 
-// next & send both return true if the generator was exhausted, false otherwise.
+// next & send both return false if the generator was exhausted, false otherwise.
 // both store the yielded value in '*value'.
 // send accepts 'send' and communicates it to the generator.
 // next is equivalent to send with 0.

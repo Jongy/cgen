@@ -3,3 +3,6 @@
 main
 test
 libcgen.a
+examples/simple
+examples/send
+examples/yield_from

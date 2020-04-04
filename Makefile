@@ -16,5 +16,10 @@ clean:
 build_test: test.c libcgen.a
 	gcc -o test test.c libcgen.a
 
+examples/%: examples/%.c
+	gcc -o $@ $< libcgen.a -I.
+
+examples: examples/simple examples/send examples/yield_from
+
 test: build_test
 	./test
