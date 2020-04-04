@@ -3,6 +3,7 @@
 
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 // clever macros taken from https://stackoverflow.com/a/2124385/797390
 #define PP_NARG(...)  PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
