@@ -105,10 +105,84 @@ static void test_yieldfrom_chained(void) {
     _test_yieldfrom(g, 17 + 12);
 }
 
+static void _test_yieldfrom_chained_bidirectional3(void) {
+    assert(30 == yield(3));
+    assert(40 == yield(4));
+}
+
+static void _test_yieldfrom_chained_bidirectional2(void) {
+    assert(20 == yield(2));
+    struct gen *g = generator(_test_yieldfrom_chained_bidirectional3);
+    yield_from(g);
+    assert(50 == yield(5));
+}
+
+static void _test_yieldfrom_chained_bidirectional1(void) {
+    assert(0 == yield(0)); // for the first next
+    assert(10 == yield(1));
+    struct gen *g = generator(_test_yieldfrom_chained_bidirectional2);
+    yield_from(g);
+    assert(60 == yield(6));
+    yield(0);
+}
+
+/*
+    I was getting really confused by this point, so I wrote a test in Python to get
+    another source of verification...
+
+    Copy it to an empty file and run with pytest:
+
+def test():
+    def t3():
+        assert 30 == (yield 3)
+        assert 40 == (yield 4)
+
+    def t2():
+        assert 20 == (yield 2)
+        yield from t3()
+        assert 50 == (yield 5)
+
+    def t1():
+        assert 0 == (yield 0)
+        assert 10 == (yield 1)
+        yield from t2()
+        assert 60 == (yield 6)
+        yield 0
+
+    g = t1()
+    assert (g.send(None) == 0 and
+            g.send(0) == 1 and
+            g.send(10) == 2 and
+            g.send(20) == 3 and
+            g.send(30) == 4 and
+            g.send(40) == 5 and
+            g.send(50) == 6 and
+            g.send(60) == 0)
+
+    import pytest
+    with pytest.raises(StopIteration):
+        next(g)
+
+*/
+
+static void test_yieldfrom_chained_bidirectional(void) {
+    struct gen *g = generator(_test_yieldfrom_chained_bidirectional1);
+    unsigned long val;
+    assert(next(g, &val) && val == 0);
+    assert(send(g, &val, 0) && val == 1);
+    assert(send(g, &val, 10) && val == 2);
+    assert(send(g, &val, 20) && val == 3);
+    assert(send(g, &val, 30) && val == 4);
+    assert(send(g, &val, 40) && val == 5);
+    assert(send(g, &val, 50) && val == 6);
+    assert(send(g, &val, 60) && val == 0);
+}
+
 int main(void) {
     test_simple();
     test_send();
     test_max_args();
     test_yieldfrom();
     test_yieldfrom_chained();
+    test_yieldfrom_chained_bidirectional();
 }
